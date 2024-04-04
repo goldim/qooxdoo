@@ -145,7 +145,7 @@ qx.Class.define("qx.Promise", {
      * @return {qx.Promise}
      */
     then(onFulfilled, onRejected) {
-      return this.__p.then(arguments);
+      return this.__p.then(onFulfilled, onRejected);
     },
 
     /**
@@ -159,7 +159,7 @@ qx.Class.define("qx.Promise", {
      *  returns a Promise which is itself rejected; otherwise, it is resolved.
      */
     catch(onRejected) {
-      return this.__p.catch(arguments);
+      return this.__p.catch(onRejected);
     },
 
     /* *********************************************************************************
@@ -211,7 +211,7 @@ qx.Class.define("qx.Promise", {
      * @return {qx.Promise} a qx.Promise chained from this promise
      */
     finally(onRejected) {
-      return this.__p.finally(arguments);
+      return this.__p.finally(onRejected);
     },
 
     /**
@@ -228,7 +228,7 @@ qx.Class.define("qx.Promise", {
      * @return {qx.Promise}
      */
     all() {
-      return this.__p.all(arguments);
+      return this.__p.all();
     },
 
     /**
@@ -240,7 +240,7 @@ qx.Class.define("qx.Promise", {
      * @return {qx.Promise}
      */
     race(iterable) {
-      return this.__p.race(arguments);
+      return this.__p.race(iterable);
     },
 
     /**
@@ -251,7 +251,7 @@ qx.Class.define("qx.Promise", {
      * @return {qx.Promise}
      */
     any(iterable) {
-      return this.__p.any(arguments);
+      return this.__p.any(iterable);
     },
 
     /**
@@ -545,7 +545,7 @@ qx.Class.define("qx.Promise", {
      * @return {qx.Promise}
      */
     all(iterable) {
-      return Promise.all(arguments);
+      return Promise.all(iterable);
     },
 
     /**
@@ -555,7 +555,7 @@ qx.Class.define("qx.Promise", {
      * @return {qx.Promise}
      */
     race(iterable) {
-      return Promise.race(arguments);
+      return Promise.race(iterable);
     },
 
     /* *********************************************************************************
@@ -572,7 +572,7 @@ qx.Class.define("qx.Promise", {
      * @return {qx.Promise}
      */
     any(iterable) {
-      return Promise.any(arguments);
+      return Promise.any(iterable);
     },
 
     /**
@@ -824,7 +824,23 @@ qx.Class.define("qx.Promise", {
      *
      * @return {qx.Promise}
      */
-    promisify(f, options) {},
+    promisify(f) {
+      return function (...args) {
+        return new Promise((resolve, reject) => {
+          function callback(err, result) {
+            if (err) {
+              reject(err);
+            } else {
+              resolve(result);
+            }
+          }
+
+          args.push(callback);
+
+          f.call(this, ...args);
+        });
+      };
+    },
 
     /* *********************************************************************************
      *
