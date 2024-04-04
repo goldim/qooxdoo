@@ -260,13 +260,14 @@ qx.Class.define("qx.ui.basic.Image", {
       var element = this.getContentElement();
       if (this.__wrapper) {
         element.getChild(0).setStyles({
-          top: this.getPaddingTop() || 0,
-          left: this.getPaddingLeft() || 0
+          top: (this.getPaddingTop() || 0) + "px",
+          left: (this.getPaddingLeft() || 0) + "px"
         });
       } else if (this.__getMode() === "font") {
+        let bounds = this.getBounds() || {};
         element.setStyles({
-          top: this.getPaddingTop() || 0,
-          left: this.getPaddingLeft() || 0
+          top: (bounds.top || 0) + (this.getPaddingTop() || 0) + "px",
+          left: (bounds.left || 0) + (this.getPaddingLeft() || 0) + "px"
         });
       } else {
         element.setPadding(
@@ -412,6 +413,7 @@ qx.Class.define("qx.ui.basic.Image", {
 
       if (mode == "font") {
         element.setRich(true);
+        element.setStyle("line-height", "1");
       } else {
         element.setScale(scale);
 
@@ -690,9 +692,11 @@ qx.Class.define("qx.ui.basic.Image", {
           newEl.tagNameHint = hint;
           newEl.setAttribute("class", currentEl.getAttribute("class"));
 
-          // Flush elements to make sure the DOM elements are created.
-          qx.html.Element.flush();
           var currentDomEl = currentEl.getDomElement();
+          if (currentDomEl && !elementToAdd.getDomElement()) {
+            // Flush elements to make sure the DOM elements are created.
+            qx.html.Element.flush();
+          }
           var newDomEl = elementToAdd.getDomElement();
 
           // copy event listeners
