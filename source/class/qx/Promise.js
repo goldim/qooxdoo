@@ -79,7 +79,9 @@ qx.Class.define("qx.Promise", {
   construct(fn, context) {
     super();
     qx.Promise.__initialize();
-    if (fn) {
+    if (fn instanceof Promise) {
+      this.__p = fn;
+    } else if (fn) {
       if (context !== undefined && context !== null) {
         fn = fn.bind(context);
       }
@@ -480,6 +482,8 @@ qx.Class.define("qx.Promise", {
       var promise;
       if (value instanceof qx.Promise) {
         promise = value;
+      } else {
+        promise = new qx.Promise(Promise.resolve(value));
       }
       if (context !== undefined) {
         promise = promise.bind(context);
@@ -545,7 +549,16 @@ qx.Class.define("qx.Promise", {
      * @return {qx.Promise}
      */
     all(iterable) {
-      return Promise.all(iterable);
+      if (iterable === undefined) {
+        throw new Error(
+          "expecting an array or an iterable object but got [object Null]"
+        );
+      }
+      if (Symbol.iterator in Object(iterable)) {
+        return Promise.all(iterable);
+      } else {
+        return Promise.all([iterable]);
+      }
     },
 
     /**
