@@ -289,17 +289,8 @@ qx.Class.define("qx.Promise", {
      * @param iterator {Function} the callback, with <code>(value, index, length)</code>
      * @return {qx.Promise}
      */
-    async forEach(iterator) {
-      const iterable = await this.__p;
-      const a = iterable.toArray();
-      for (let i = 0; i < a.length; i++) {
-        try {
-          const result = await qx.Promise.resolve(a[i]);
-          iterator(result, i, iterable.length);
-        } catch (ex) {
-          throw ex;
-        }
-      }
+    forEach(iterator) {
+      return qx.Promise.forEach(this.__p, iterator);
     },
 
     /**
@@ -635,7 +626,18 @@ qx.Class.define("qx.Promise", {
      * @param iterator {Function} the callback, with <code>(value, index, length)</code>
      * @return {qx.Promise}
      */
-    forEach(iterable, iterator) {},
+    async forEach(iterable, iterator) {
+      const promise = await iterable;
+      const a = promise.toArray();
+      for (let i = 0; i < a.length; i++) {
+        try {
+          const result = await qx.Promise.resolve(a[i]);
+          iterator(result, i, iterable.length);
+        } catch (ex) {
+          throw ex;
+        }
+      }
+    },
 
     /**
      * Given an Iterable(arrays are Iterable), or a promise of an Iterable, which produces promises (or a mix of
