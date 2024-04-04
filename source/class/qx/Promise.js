@@ -148,8 +148,8 @@ qx.Class.define("qx.Promise", {
      */
     then(onFulfilled, onRejected) {
       return this.__p.then(
-        onFulfilled.bind(this.__context),
-        onRejected.bind(this.__context)
+        onFulfilled ? onFulfilled.bind(this.__context) : onFulfilled,
+        onRejected ? onRejected.bind(this.__context) : onRejected
       );
     },
 
@@ -164,7 +164,9 @@ qx.Class.define("qx.Promise", {
      *  returns a Promise which is itself rejected; otherwise, it is resolved.
      */
     catch(onRejected) {
-      return this.__p.catch(onRejected.bind(this.__context));
+      return this.__p.catch(
+        onRejected ? onRejected.bind(this.__context) : onRejected
+      );
     },
 
     /* *********************************************************************************
@@ -217,7 +219,9 @@ qx.Class.define("qx.Promise", {
      * @return {qx.Promise} a qx.Promise chained from this promise
      */
     finally(onRejected) {
-      return this.__p.finally(onRejected);
+      return this.__p.finally(
+        onRejected ? onRejected.bind(this.__context) : onRejected
+      );
     },
 
     /**
