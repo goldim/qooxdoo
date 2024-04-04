@@ -111,7 +111,7 @@ qx.Class.define("qx.Promise", {
     qx.core.Assert.assertTrue(!this.__p.$$qxPromise);
     this.__p.$$qxPromise = this;
     if (context !== undefined && context !== null) {
-      this.__p = this.__p.bind(context);
+      this.bind(context);
     }
   },
 
@@ -147,7 +147,10 @@ qx.Class.define("qx.Promise", {
      * @return {qx.Promise}
      */
     then(onFulfilled, onRejected) {
-      return this.__p.then(onFulfilled, onRejected);
+      return this.__p.then(
+        onFulfilled.bind(this.__context),
+        onRejected.bind(this.__context)
+      );
     },
 
     /**
@@ -161,7 +164,7 @@ qx.Class.define("qx.Promise", {
      *  returns a Promise which is itself rejected; otherwise, it is resolved.
      */
     catch(onRejected) {
-      return this.__p.catch(onRejected);
+      return this.__p.catch(onRejected.bind(this.__context));
     },
 
     /* *********************************************************************************
@@ -177,7 +180,8 @@ qx.Class.define("qx.Promise", {
      * @return {qx.Promise} the new promise
      */
     bind(context) {
-      return this.__p.bind(context);
+      this.__context = context;
+      return this;
     },
 
     /**
@@ -450,7 +454,9 @@ qx.Class.define("qx.Promise", {
      * @returns {Boolean} true if it is a promise
      */
     isPromise(value) {
-      if (!value || typeof value.then != "function") return false;
+      if (!value || typeof value.then != "function") {
+        return false;
+      }
 
       if (qx.core.Environment.get("qx.debug")) {
         if (
