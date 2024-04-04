@@ -289,7 +289,18 @@ qx.Class.define("qx.Promise", {
      * @param iterator {Function} the callback, with <code>(value, index, length)</code>
      * @return {qx.Promise}
      */
-    forEach(iterable, iterator) {},
+    async forEach(iterator) {
+      const iterable = await this.__p;
+      const a = iterable.toArray();
+      for (let i = 0; i < a.length; i++) {
+        try {
+          const result = await qx.Promise.resolve(a[i]);
+          iterator(result, i, iterable.length);
+        } catch (ex) {
+          throw ex;
+        }
+      }
+    },
 
     /**
      * Same as {@link qx.Promise.filter} except that it iterates over the value of this promise, when it is fulfilled;
