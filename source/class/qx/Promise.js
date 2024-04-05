@@ -147,10 +147,11 @@ qx.Class.define("qx.Promise", {
      * @return {qx.Promise}
      */
     then(onFulfilled, onRejected) {
-      return this.__p.then(
-        onFulfilled ? onFulfilled.bind(this.__context) : onFulfilled,
-        onRejected ? onRejected.bind(this.__context) : onRejected
+      const p = this.__p.then(
+          onFulfilled ? onFulfilled.bind(this.__context) : onFulfilled,
+          onRejected ? onRejected.bind(this.__context) : onRejected
       );
+      return qx.Promise.resolve(p);
     },
 
     /**
@@ -164,9 +165,10 @@ qx.Class.define("qx.Promise", {
      *  returns a Promise which is itself rejected; otherwise, it is resolved.
      */
     catch(onRejected) {
-      return this.__p.catch(
+      const p = this.__p.catch(
         onRejected ? onRejected.bind(this.__context) : onRejected
       );
+      return qx.Promise.resolve(p);
     },
 
     /* *********************************************************************************
@@ -219,9 +221,10 @@ qx.Class.define("qx.Promise", {
      * @return {qx.Promise} a qx.Promise chained from this promise
      */
     finally(onRejected) {
-      return this.__p.finally(
+      const p = this.__p.finally(
         onRejected ? onRejected.bind(this.__context) : onRejected
       );
+      return qx.Promise.resolve(p);
     },
 
     /**
@@ -626,17 +629,21 @@ qx.Class.define("qx.Promise", {
      * @param iterator {Function} the callback, with <code>(value, index, length)</code>
      * @return {qx.Promise}
      */
-    async forEach(iterable, iterator) {
-      const promise = await iterable;
-      const a = promise.toArray();
-      for (let i = 0; i < a.length; i++) {
-        try {
-          const result = await qx.Promise.resolve(a[i]);
-          iterator(result, i, iterable.length);
-        } catch (ex) {
-          throw ex;
-        }
+    forEach(iterable, iterator) {
+      const f = async (resolve, reject) => {
+          const promise = await iterable;
+          const a = promise.toArray();
+          for (let i = 0; i < a.length; i++) {
+              try {
+                  const result = await qx.Promise.resolve(a[i]);
+                  iterator(result, i, iterable.length);
+              } catch (ex) {
+                  reject(ex);
+              }
+          }
+          resolve();
       }
+      return new qx.Promise(f.bind(this.__context));
     },
 
     /**
@@ -908,12 +915,12 @@ qx.Class.define("qx.Promise", {
           qx.Promise.__onUnhandledRejection.bind(this)
         );
       }
-      if (!qx.core.Environment.get("qx.promise")) {
-        qx.log.Logger.error(
-          this,
-          "Promises are installed and initialised but disabled from properties because qx.promise==false; this may cause unexpected behaviour"
-        );
-      }
+      // if (!qx.core.Environment.get("qx.Promise")) {
+      //   qx.log.Logger.error(
+      //     this,
+      //     "Promises are installed and initialised but disabled from properties because qx.Promise==false; this may cause unexpected behaviour"
+      //   );
+      // }
     },
 
     /**
@@ -945,7 +952,7 @@ qx.Class.define("qx.Promise", {
   defer(statics, members) {
     statics.Promise = statics.Native = window.Promise;
     var debug = qx.core.Environment.get("qx.debug");
-    qx.core.Environment.add("qx.promise.warnings", debug);
-    qx.core.Environment.add("qx.promise.longStackTraces", false);
+    qx.core.Environment.add("qx.Promise.warnings", debug);
+    qx.core.Environment.add("qx.Promise.longStackTraces", false);
   }
 });
