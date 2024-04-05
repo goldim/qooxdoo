@@ -292,8 +292,8 @@ qx.Class.define("qx.Promise", {
      * @param iterator {Function} the callback, with <code>(value, index, length)</code>
      * @return {qx.Promise}
      */
-    forEach(iterator) {
-      return qx.Promise.forEach(this.__p, iterator);
+    forEach(iterator, context) {
+      return qx.Promise.forEach(this.__p, iterator, context);
     },
 
     /**
@@ -629,21 +629,26 @@ qx.Class.define("qx.Promise", {
      * @param iterator {Function} the callback, with <code>(value, index, length)</code>
      * @return {qx.Promise}
      */
-    forEach(iterable, iterator) {
+    forEach(iterable, iterator, context) {
       const f = async (resolve, reject) => {
           const promise = await iterable;
-          const a = promise.toArray();
+          let a;
+          if (a instanceof qx.data.Array){
+              a = promise.toArray();
+          } else {
+              a = iterable;
+          }
           for (let i = 0; i < a.length; i++) {
               try {
                   const result = await qx.Promise.resolve(a[i]);
-                  iterator(result, i, iterable.length);
+                  iterator.call(context ? context: this.__context, result, i, iterable.length);
               } catch (ex) {
                   reject(ex);
               }
           }
           resolve();
       }
-      return new qx.Promise(f.bind(this.__context));
+      return new qx.Promise(f.bind(context ? context: this.__context));
     },
 
     /**
