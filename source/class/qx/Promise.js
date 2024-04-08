@@ -844,7 +844,20 @@ qx.Class.define("qx.Promise", {
      * @param input {Object} An Object
      * @return {qx.Promise}
      */
-    props(input) {},
+    props(input) {
+      const entries = Object.entries(input);
+      const promises = entries.map(entry => new qx.Promise(async resolve => {
+        const value = await entry[1];
+        resolve([entry[0], value]);
+      }));
+      return qx.Promise.all(promises).then(values => {
+        let result = {};
+        values.forEach(entry => {
+          result[entry[0]] = entry[1];
+        });
+        return result;
+      });
+    },
 
     /**
      * Returns a new function that wraps a function that is in node.js
