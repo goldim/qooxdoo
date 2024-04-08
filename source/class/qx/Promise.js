@@ -142,14 +142,16 @@ qx.Class.define("qx.Promise", {
      *
      * @param onFulfilled {Function} called when the Promise is fulfilled. This function
      *  has one argument, the fulfillment value.
-     * @param onRejected {Function?} called when the Promise is rejected. This function
+     * @param onRejectedOrFulfillContext {Function?} called when the Promise is rejected. This function
      *  has one argument, the rejection reason.
      * @return {qx.Promise}
      */
-    then(onFulfilled, onRejected) {
+    then(onFulfilled, onRejectedOrFulfillContext) {
+      let isContext = !qx.lang.Type.isFunction(onRejectedOrFulfillContext);
+      const context = isContext ? onRejectedOrFulfillContext: this.__context;
       const p = this.__p.then(
           onFulfilled ? onFulfilled.bind(this.__context) : onFulfilled,
-          onRejected ? onRejected.bind(this.__context) : onRejected
+          onRejectedOrFulfillContext ? onRejectedOrFulfillContext.bind(this.__context) : onRejectedOrFulfillContext
       );
       return qx.Promise.resolve(p);
     },
@@ -210,7 +212,9 @@ qx.Class.define("qx.Promise", {
      * @param fulfilledHandler {Function} called when the Promises are fulfilled.
      * @return {qx.Promise}
      */
-    spread(fulfilledHandler) {},
+    spread(fulfilledHandler) {
+      return this.__p.then(values => { new qx.Promise(() => fulfilledHandler(...values)); });
+    },
 
     /**
      * Appends a handler that will be called regardless of this promise's fate. The handler
@@ -220,9 +224,10 @@ qx.Class.define("qx.Promise", {
      *  has no arguments, but can return a promise
      * @return {qx.Promise} a qx.Promise chained from this promise
      */
-    finally(onRejected) {
+    finally(onRejected, rejectContext) {
+      let context = rejectContext ? rejectContext : this.__context;
       const p = this.__p.finally(
-        onRejected ? onRejected.bind(this.__context) : onRejected
+        onRejected ? onRejected.bind(context) : onRejected
       );
       return qx.Promise.resolve(p);
     },
@@ -327,7 +332,9 @@ qx.Class.define("qx.Promise", {
      *  <code>concurrency</code> max nuber of simultaneous filters, default is <code>Infinity</code>
      * @return {qx.Promise}
      */
-    map(iterable, iterator, options) {},
+    map(iterable, iterator, options) {
+
+    },
 
     /**
      * Same as {@link qx.Promise.mapSeries} except that it iterates over the value of this promise, when
@@ -346,7 +353,9 @@ qx.Class.define("qx.Promise", {
      * @param iterator {Function} the callback, with <code>(value, index, length)</code>
      * @return {qx.Promise}
      */
-    mapSeries(iterable, iterator) {},
+    mapSeries(iterable, iterator) {
+
+    },
 
     /**
      * Same as {@link qx.Promise.reduce} except that it iterates over the value of this promise, when
@@ -520,11 +529,8 @@ qx.Class.define("qx.Promise", {
       } else if (!(reason instanceof Error)) {
         qx.log.Logger.warn("Rejecting a promise with a non-Error value");
       }
-      var promise = Promise.reject(args, 0);
-      if (context !== undefined) {
-        promise = promise.bind(context);
-      }
-      return promise;
+      var promise = Promise.reject(args);
+      return new qx.Promise(promise, context ? context : this.__context);
     },
 
     /**
@@ -569,11 +575,13 @@ qx.Class.define("qx.Promise", {
           "expecting an array or an iterable object but got [object Null]"
         );
       }
+      let promise;
       if (Symbol.iterator in Object(iterable)) {
-        return Promise.all(iterable);
+        promise = Promise.all(iterable);
       } else {
-        return Promise.all([iterable]);
+        promise = Promise.all([iterable]);
       }
+      return new qx.Promise(promise);
     },
 
     /**
@@ -613,7 +621,8 @@ qx.Class.define("qx.Promise", {
      * @param count {Integer}
      * @return {qx.Promise}
      */
-    some(iterable, count) {},
+    some(iterable, count) {
+    },
 
     /**
      * Iterate over an array, or a promise of an array, which contains promises (or a mix of promises and values)
@@ -630,6 +639,7 @@ qx.Class.define("qx.Promise", {
      * @return {qx.Promise}
      */
     forEach(iterable, iterator, context) {
+      const newtContext = context ? context: this.__context;
       const f = async (resolve, reject) => {
           const promise = await iterable;
           let a;
@@ -641,14 +651,14 @@ qx.Class.define("qx.Promise", {
           for (let i = 0; i < a.length; i++) {
               try {
                   const result = await qx.Promise.resolve(a[i]);
-                  iterator.call(context ? context: this.__context, result, i, iterable.length);
+                  iterator.call(newtContext, result, i, iterable.length);
               } catch (ex) {
                   reject(ex);
               }
           }
           resolve();
       }
-      return new qx.Promise(f.bind(context ? context: this.__context));
+      return new qx.Promise(f.bind(newtContext), newtContext);
     },
 
     /**
@@ -675,7 +685,12 @@ qx.Class.define("qx.Promise", {
      *  <code>concurrency</code> max nuber of simultaneous filters, default is <code>Infinity</code>
      * @return {qx.Promise}
      */
-    filter(iterable, iterator, options) {},
+    filter(iterable, iterator, options) {
+      const promise = qx.Promise.map(iterable, iterator, options);
+      return promise.then(values => {
+        return values.filter((value) => value === true);
+      });
+    },
 
     /**
      * Given an <code>Iterable</code> (arrays are <code>Iterable</code>), or a promise of an
@@ -718,7 +733,15 @@ qx.Class.define("qx.Promise", {
      *  <code>concurrency</code> max nuber of simultaneous filters, default is <code>Infinity</code>
      * @return {qx.Promise}
      */
-    map(iterable, iterator, options) {},
+    map(iterable, iterator, options) {
+      const promises = [];
+      for (let i = 0; i < iterable.length; ++i) {
+        promises.push(new qx.Promise((resolve) => {
+          resolve(iterator(iterable[i]));
+        }));
+      }
+      return qx.Promise.all(promises);
+    },
 
     /**
      * Given an <code>Iterable</code>(arrays are <code>Iterable</code>), or a promise of an
@@ -755,7 +778,9 @@ qx.Class.define("qx.Promise", {
      * @param iterator {Function} the callback, with <code>(value, index, length)</code>
      * @return {qx.Promise}
      */
-    mapSeries(iterable, iterator) {},
+    mapSeries(iterable, iterator) {
+      return qx.Promise.map(iterable, iterator);
+    },
 
     /**
      * Given an <code>Iterable</code> (arrays are <code>Iterable</code>), or a promise of an
@@ -801,7 +826,9 @@ qx.Class.define("qx.Promise", {
      * @param cb {Function}
      * @return {Function}
      */
-    method(cb) {},
+    method(cb) {
+      return qx.Promise.promisify(cb);
+    },
 
     /**
      * Like .all but for object properties or Maps* entries instead of iterated values. Returns a promise that
@@ -874,7 +901,7 @@ qx.Class.define("qx.Promise", {
      */
     promisify(f) {
       return function (...args) {
-        return new Promise((resolve, reject) => {
+        return new qx.Promise(new Promise((resolve, reject) => {
           function callback(err, result) {
             if (err) {
               reject(err);
@@ -886,7 +913,7 @@ qx.Class.define("qx.Promise", {
           args.push(callback);
 
           f.call(this, ...args);
-        });
+        }));
       };
     },
 
