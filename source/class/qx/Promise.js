@@ -147,11 +147,18 @@ qx.Class.define("qx.Promise", {
      * @return {qx.Promise}
      */
     then(onFulfilled, onRejectedOrFulfillContext) {
-      let isContext = !qx.lang.Type.isFunction(onRejectedOrFulfillContext);
-      const context = isContext ? onRejectedOrFulfillContext: this.__context;
+      let isContext =
+        onRejectedOrFulfillContext &&
+        (!qx.lang.Type.isFunction(onRejectedOrFulfillContext) ||
+          qx.Class.isClass(onRejectedOrFulfillContext));
+      const context = isContext ? onRejectedOrFulfillContext : this.__context;
       const p = this.__p.then(
-          onFulfilled ? onFulfilled.bind(this.__context) : onFulfilled,
-          onRejectedOrFulfillContext ? onRejectedOrFulfillContext.bind(this.__context) : onRejectedOrFulfillContext
+        onFulfilled ? onFulfilled.bind(context) : onFulfilled,
+        isContext
+          ? () => {}
+          : onRejectedOrFulfillContext
+          ? onRejectedOrFulfillContext.bind(this.__context)
+          : () => {}
       );
       return qx.Promise.resolve(p);
     },
@@ -213,7 +220,9 @@ qx.Class.define("qx.Promise", {
      * @return {qx.Promise}
      */
     spread(fulfilledHandler) {
-      return this.__p.then(values => { new qx.Promise(() => fulfilledHandler(...values)); });
+      return this.__p.then(values => {
+        new qx.Promise(() => fulfilledHandler(...values));
+      });
     },
 
     /**
@@ -298,7 +307,9 @@ qx.Class.define("qx.Promise", {
      * @return {qx.Promise}
      */
     forEach(iterator, context) {
-      return qx.Promise.forEach(this.__p, iterator, context);
+      return this.then(values => {
+        return qx.Promise.forEach(values, iterator, context);
+      });
     },
 
     /**
@@ -332,9 +343,7 @@ qx.Class.define("qx.Promise", {
      *  <code>concurrency</code> max nuber of simultaneous filters, default is <code>Infinity</code>
      * @return {qx.Promise}
      */
-    map(iterable, iterator, options) {
-
-    },
+    map(iterable, iterator, options) {},
 
     /**
      * Same as {@link qx.Promise.mapSeries} except that it iterates over the value of this promise, when
@@ -353,9 +362,7 @@ qx.Class.define("qx.Promise", {
      * @param iterator {Function} the callback, with <code>(value, index, length)</code>
      * @return {qx.Promise}
      */
-    mapSeries(iterable, iterator) {
-
-    },
+    mapSeries(iterable, iterator) {},
 
     /**
      * Same as {@link qx.Promise.reduce} except that it iterates over the value of this promise, when
@@ -621,8 +628,7 @@ qx.Class.define("qx.Promise", {
      * @param count {Integer}
      * @return {qx.Promise}
      */
-    some(iterable, count) {
-    },
+    some(iterable, count) {},
 
     /**
      * Iterate over an array, or a promise of an array, which contains promises (or a mix of promises and values)
@@ -639,26 +645,26 @@ qx.Class.define("qx.Promise", {
      * @return {qx.Promise}
      */
     forEach(iterable, iterator, context) {
-      const newtContext = context ? context: this.__context;
+      const newContext = context ? context : this.__context;
       const f = async (resolve, reject) => {
-          const promise = await iterable;
-          let a;
-          if (a instanceof qx.data.Array){
-              a = promise.toArray();
-          } else {
-              a = iterable;
+        const promise = await iterable;
+        let a;
+        if (iterable instanceof qx.data.Array) {
+          a = promise.toArray();
+        } else {
+          a = iterable;
+        }
+        for (let i = 0; i < a.length; i++) {
+          try {
+            const result = await qx.Promise.resolve(a[i]);
+            iterator.call(newContext, result, i, iterable.length);
+          } catch (ex) {
+            reject(ex);
           }
-          for (let i = 0; i < a.length; i++) {
-              try {
-                  const result = await qx.Promise.resolve(a[i]);
-                  iterator.call(newtContext, result, i, iterable.length);
-              } catch (ex) {
-                  reject(ex);
-              }
-          }
-          resolve();
-      }
-      return new qx.Promise(f.bind(newtContext), newtContext);
+        }
+        resolve();
+      };
+      return new qx.Promise(f.bind(newContext), newContext);
     },
 
     /**
@@ -688,7 +694,7 @@ qx.Class.define("qx.Promise", {
     filter(iterable, iterator, options) {
       const promise = qx.Promise.map(iterable, iterator, options);
       return promise.then(values => {
-        return values.filter((value) => value === true);
+        return values.filter(value => value === true);
       });
     },
 
@@ -736,9 +742,11 @@ qx.Class.define("qx.Promise", {
     map(iterable, iterator, options) {
       const promises = [];
       for (let i = 0; i < iterable.length; ++i) {
-        promises.push(new qx.Promise((resolve) => {
-          resolve(iterator(iterable[i]));
-        }));
+        promises.push(
+          new qx.Promise(resolve => {
+            resolve(iterator(iterable[i]));
+          })
+        );
       }
       return qx.Promise.all(promises);
     },
@@ -827,7 +835,11 @@ qx.Class.define("qx.Promise", {
      * @return {Function}
      */
     method(cb) {
-      return qx.Promise.promisify(cb);
+      return (...args) => {
+        return new qx.Promise(resolve =>
+          resolve(cb.call(this.__context, ...args))
+        );
+      };
     },
 
     /**
@@ -846,10 +858,13 @@ qx.Class.define("qx.Promise", {
      */
     props(input) {
       const entries = Object.entries(input);
-      const promises = entries.map(entry => new qx.Promise(async resolve => {
-        const value = await entry[1];
-        resolve([entry[0], value]);
-      }));
+      const promises = entries.map(
+        entry =>
+          new qx.Promise(async resolve => {
+            const value = await entry[1];
+            resolve([entry[0], value]);
+          })
+      );
       return qx.Promise.all(promises).then(values => {
         let result = {};
         values.forEach(entry => {
@@ -914,7 +929,7 @@ qx.Class.define("qx.Promise", {
      */
     promisify(f) {
       return function (...args) {
-        return new qx.Promise(new Promise((resolve, reject) => {
+        return new qx.Promise((resolve, reject) => {
           function callback(err, result) {
             if (err) {
               reject(err);
@@ -924,9 +939,8 @@ qx.Class.define("qx.Promise", {
           }
 
           args.push(callback);
-
           f.call(this, ...args);
-        }));
+        });
       };
     },
 
