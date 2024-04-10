@@ -309,9 +309,7 @@ qx.Class.define("qx.Promise", {
      * @return {qx.Promise}
      */
     forEach(iterator, context) {
-      return this.then(values => {
-        return qx.Promise.forEach(values, iterator, context);
-      });
+      return this.then(values => qx.Promise.forEach(values, iterator, context));
     },
 
     /**
@@ -325,9 +323,7 @@ qx.Class.define("qx.Promise", {
      * @return {qx.Promise}
      */
     filter(iterator, options) {
-      return this.then(values => {
-        return qx.Promise.filter(values, iterator, options);
-      });
+      return this.then(values => qx.Promise.filter(values, iterator, options));
     },
 
     /**
@@ -636,7 +632,21 @@ qx.Class.define("qx.Promise", {
      * @param count {Integer}
      * @return {qx.Promise}
      */
-    some(iterable, count) {},
+    some(iterable, count) {
+      return new qx.Promise((resolve, reject) => {
+        let counter = count;
+        let result = [];
+        for (let item of iterable){
+          qx.Promise.resolve(item).then(v => {
+            result.push(v);
+            counter--;
+            if (!counter) { 
+              resolve(result);
+            }
+          });
+        }
+      });
+    },
 
     /**
      * Iterate over an array, or a promise of an array, which contains promises (or a mix of promises and values)
@@ -701,9 +711,7 @@ qx.Class.define("qx.Promise", {
      */
     filter(iterable, iterator, options) {
       const promise = qx.Promise.map(iterable, iterator, options);
-      return promise.then(values => {
-        return values.filter(value => value === true);
-      });
+      return promise.then(values => values.filter(value => value === true));
     },
 
     /**
@@ -836,9 +844,7 @@ qx.Class.define("qx.Promise", {
      */
     reduce(iterable, reducer, initialValue) {
       const promise = qx.Promise.all(iterable);
-      return promise.then(values => {
-        return values.reduce(reducer, initialValue);
-      });
+      return promise.then(values => values.reduce(reducer, initialValue));
     },
 
     /**
@@ -848,11 +854,9 @@ qx.Class.define("qx.Promise", {
      * @return {Function}
      */
     method(cb) {
-      return (...args) => {
-        return new qx.Promise(resolve =>
+      return (...args) => new qx.Promise(resolve =>
           resolve(cb.call(this.__context, ...args))
         );
-      };
     },
 
     /**
