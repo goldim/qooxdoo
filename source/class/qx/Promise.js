@@ -252,10 +252,11 @@ qx.Class.define("qx.Promise", {
      * <code>.all</code> will return a Promise that waits for all promises in that Iterable to be
      * fullfilled.  The Iterable can be a mix of values and Promises
      *
+     * @param iterable {Iterable} An iterable object, such as an Array
      * @return {qx.Promise}
      */
-    all() {
-      return this.__p.all();
+    all(iterable) {
+      return qx.Promise.all(iterable);
     },
 
     /**
@@ -264,10 +265,11 @@ qx.Class.define("qx.Promise", {
      * <code>.race</code> will return a Promise that waits until the first promise in that Iterable
      * has been fullfilled.  The Iterable can be a mix of values and Promises
      *
+     * @param iterable {Iterable} An iterable object, such as an Array
      * @return {qx.Promise}
      */
     race(iterable) {
-      return this.__p.race(iterable);
+      return qx.Promise.race(iterable);
     },
 
     /**
@@ -278,7 +280,7 @@ qx.Class.define("qx.Promise", {
      * @return {qx.Promise}
      */
     any(iterable) {
-      return this.__p.any(iterable);
+      return qx.Promise.any(iterable);
     },
 
     /**
@@ -322,7 +324,11 @@ qx.Class.define("qx.Promise", {
      *  <code>concurrency</code> max nuber of simultaneous filters, default is <code>Infinity</code>
      * @return {qx.Promise}
      */
-    filter(iterable, iterator, options) {},
+    filter(iterator, options) {
+      return this.then(values => {
+        return qx.Promise.filter(values, iterator, options);
+      });
+    },
 
     /**
      * Same as {@link qx.Promise.map} except that it iterates over the value of this promise, when it is fulfilled;
@@ -386,7 +392,9 @@ qx.Class.define("qx.Promise", {
      * @param initialValue {Object?} optional initial value
      * @return {qx.Promise}
      */
-    reduce(iterable, reducer, initialValue) {},
+    reduce(iterable, reducer, initialValue) {
+      return qx.Promise.reduce(iterable, reducer, initialValue);
+    },
 
     /**
      * External promise handler
@@ -826,7 +834,12 @@ qx.Class.define("qx.Promise", {
      * @param initialValue {Object?} optional initial value
      * @return {qx.Promise}
      */
-    reduce(iterable, reducer, initialValue) {},
+    reduce(iterable, reducer, initialValue) {
+      const promise = qx.Promise.all(iterable);
+      return promise.then(values => {
+        return values.reduce(reducer, initialValue);
+      });
+    },
 
     /**
      * Returns a new function that wraps the given function fn. The new function will always return a promise that is
