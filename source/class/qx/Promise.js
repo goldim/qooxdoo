@@ -345,7 +345,11 @@ qx.Class.define("qx.Promise", {
      *  <code>concurrency</code> max nuber of simultaneous filters, default is <code>Infinity</code>
      * @return {qx.Promise}
      */
-    map(iterable, iterator, options) {},
+    map(iterator, options) {
+      return this.__p.then(iterable =>
+        qx.Promise.mapSeries(iterable, iterator)
+      );
+    },
 
     /**
      * Same as {@link qx.Promise.mapSeries} except that it iterates over the value of this promise, when
@@ -365,7 +369,9 @@ qx.Class.define("qx.Promise", {
      * @return {qx.Promise}
      */
     mapSeries(iterator) {
-      return this.__p.then(a => qx.Promise.mapSeries(a, iterator));
+      return this.__p.then(iterable =>
+        qx.Promise.mapSeries(iterable, iterator)
+      );
     },
 
     /**
@@ -758,15 +764,7 @@ qx.Class.define("qx.Promise", {
      * @return {qx.Promise}
      */
     map(iterable, iterator, options) {
-      const promises = [];
-      for (let i = 0; i < iterable.length; ++i) {
-        promises.push(
-          new qx.Promise(resolve => {
-            resolve(iterator(iterable[i]));
-          })
-        );
-      }
-      return qx.Promise.all(promises);
+      return qx.Promise.map(iterable, iterator);
     },
 
     /**
@@ -804,8 +802,20 @@ qx.Class.define("qx.Promise", {
      * @param iterator {Function} the callback, with <code>(value, index, length)</code>
      * @return {qx.Promise}
      */
-    mapSeries(iterable, iterator) {
-      return qx.Promise.map(iterable, iterator);
+    async mapSeries(iterable, iterator) {
+      const result = [];
+      for (let promise of iterable) {
+        const p = new qx.Promise(resolve => {
+          resolve(iterator(promise));
+        });
+        try {
+          const resolved = await p;
+          result.push(resolved);
+        } catch (ex) {
+          return [];
+        }
+      }
+      return result;
     },
 
     /**
