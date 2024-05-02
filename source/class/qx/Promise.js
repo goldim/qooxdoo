@@ -364,7 +364,9 @@ qx.Class.define("qx.Promise", {
      * @param iterator {Function} the callback, with <code>(value, index, length)</code>
      * @return {qx.Promise}
      */
-    mapSeries(iterable, iterator) {},
+    mapSeries(iterator) {
+      return this.__p.then(a => qx.Promise.mapSeries(a, iterator));
+    },
 
     /**
      * Same as {@link qx.Promise.reduce} except that it iterates over the value of this promise, when
@@ -636,11 +638,11 @@ qx.Class.define("qx.Promise", {
       return new qx.Promise((resolve, reject) => {
         let counter = count;
         let result = [];
-        for (let item of iterable){
+        for (let item of iterable) {
           qx.Promise.resolve(item).then(v => {
             result.push(v);
             counter--;
-            if (!counter) { 
+            if (!counter) {
               resolve(result);
             }
           });
@@ -854,9 +856,8 @@ qx.Class.define("qx.Promise", {
      * @return {Function}
      */
     method(cb) {
-      return (...args) => new qx.Promise(resolve =>
-          resolve(cb.call(this.__context, ...args))
-        );
+      return (...args) =>
+        new qx.Promise(resolve => resolve(cb.call(this.__context, ...args)));
     },
 
     /**
