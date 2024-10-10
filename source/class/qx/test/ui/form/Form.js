@@ -427,6 +427,21 @@ qx.Class.define("qx.test.ui.form.Form", {
 
       cont.dispose();
       rb.destroy();
+    },
+
+    testRedefineItem() {
+      var form = new qx.ui.form.Form();
+      var resetter = form._resetter;
+      resetter.redefineItem = this.spy(resetter.redefineItem);
+
+      var item = new qx.ui.form.TextField();
+      form.add(item, "xyz");
+      form.redefineResetterItem(item);
+
+      this.assertCalledOnce(resetter.redefineItem);
+
+      item.dispose();
+      form.dispose();
     }
   }
 });
