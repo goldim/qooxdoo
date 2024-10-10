@@ -2131,8 +2131,10 @@ qx.Class.define("qx.ui.core.Widget", {
       if (value === "visible") {
         content.show();
       } else {
-        console.log("widget hide", content);
-        content.hide();
+        // console.trace("widget hide", content);
+        if (content){
+          content.hide();
+        }
       } // only force a layout update if visibility change from/to "exclude"
       var parent = this.$$parent;
       if (
