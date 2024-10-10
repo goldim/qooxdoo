@@ -53,6 +53,7 @@ qx.Class.define("qx.tool.compiler.targets.meta.BootJs", {
      * @param jsMeta {AbstractJavascriptMeta} the jaavscript to add
      */
     addEmbeddedJs(jsMeta) {
+      console.log("aaa");
       if (!this.__embeddedJsLookup[jsMeta.toHashCode()]) {
         this.__embeddedJs.push(jsMeta);
         this.__embeddedJsLookup[jsMeta.toHashCode()] = jsMeta;
